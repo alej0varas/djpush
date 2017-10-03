@@ -1,0 +1,7 @@
+*~
+__pycache__
+/README.html
+/*.egg-info
+/.tox
+/build/
+/dist/
