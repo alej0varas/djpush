@@ -38,8 +38,8 @@ class NotificationCategory(models.Model):
 
 
 def ValidNotificationSlug(value):
-    if value not in settings.DJPUSH_NOTIFICATION_CHOISES:
-        raise ValidtionError('%s not in "DJPUSH_NOTIFICATION_CHOISES"' % value)
+    if value not in [i[0] for i in  settings.DJPUSH_NOTIFICATION_CHOISES]:
+        raise ValidationError('%s not in "DJPUSH_NOTIFICATION_CHOISES"' % value)
 
 
 class Notification(models.Model):
