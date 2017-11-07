@@ -1,13 +1,13 @@
+from collections import defaultdict
 import datetime
 import json
-import os
-from collections import defaultdict
 
 import pypn
 import requests
 from celery import shared_task
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, ValidationError
+from django.core.exceptions import (ImproperlyConfigured,
+                                    ObjectDoesNotExist, ValidationError)
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.template import Context, Template
@@ -25,7 +25,8 @@ PRIORITY_CHOICES = (
 
 DEFAULT_PROVIDER = getattr(settings, 'DJPUSH_DEFAULT_PROVIDER')
 if DEFAULT_PROVIDER is None:
-    raise ImproperlyConfigured('A default notification provider is required. Check README for details.')
+    raise ImproperlyConfigured('A default notification provider is required. '
+                               'Check README for details.')
 
 
 class NotificationCategory(models.Model):
@@ -38,8 +39,9 @@ class NotificationCategory(models.Model):
 
 
 def ValidNotificationSlug(value):
-    if value not in [i[0] for i in  settings.DJPUSH_NOTIFICATION_CHOISES]:
-        raise ValidationError('%s not in "DJPUSH_NOTIFICATION_CHOISES"' % value)
+    if value not in [i[0] for i in settings.DJPUSH_NOTIFICATION_CHOISES]:
+        raise ValidationError('%s not in "DJPUSH_NOTIFICATION_CHOISES"'
+                              % value)
 
 
 class Notification(models.Model):
@@ -135,7 +137,8 @@ class Notification(models.Model):
         dynamic_keys = ['body', 'title']
         # To get translations
         languages = dict(settings.LANGUAGES)
-        # This is the default an will be taken from the field without translation
+        # This is the default an will be taken from the field without
+        # translation.
         languages.pop('en')
         languages = languages.keys()
         fields = [field for field in self._meta.get_fields()]
@@ -235,7 +238,8 @@ class NotificationInstance(models.Model):
         if self.sent_at is not None:
             return None
         notification = pypn.Notification(self.provider)
-        result = notification.send(json.loads(self.tokens), json.loads(self.data))
+        result = notification.send(json.loads(self.tokens),
+                                   json.loads(self.data))
         self.sent_at = datetime.datetime.now()
         # This should be handled by pypn. `result` can be `None`,
         # <str>, <requests.Response>(OneSignal) We only use OneSignal
@@ -260,7 +264,8 @@ class Scheduler(models.Model):
         return str(scheduler)
 
     def get_child_scheduler(self):
-        childs_names = [name for name in dir(self) if name.startswith('scheduler')]
+        childs_names = [name for name in dir(self)
+                        if name.startswith('scheduler')]
         obj = None
         for name in childs_names:
             try:
@@ -277,7 +282,8 @@ class Scheduler(models.Model):
         # If no scheduler we schedule for `now`
         if scheduler is None:
             return now
-        schedule = scheduler.scheduler_class(*scheduler.get_scheduler_args())(now)
+        schedule = scheduler.scheduler_class(
+            *scheduler.get_scheduler_args())(now)
         return schedule
 
 
@@ -325,7 +331,8 @@ def schedule_notification(timezone, slug, tokens, context=None, provider=None):
     # Apply the timezone
     schedule = datetime.datetime.now(timezone)
     # Apply notification schedulers
-    for scheduler in notification.notificationscheduler_set.all().order_by('order'):
+    schedulers = notification.notificationscheduler_set.all().order_by('order')
+    for scheduler in schedulers:
         schedule = scheduler.scheduler.get_schedule(schedule)
     # Remove the timezone. `utctimetuple` returns (2017, 3, 8, 14, 42,
     # 21, 2, 67, 0) so from the beginning to the 5th element is from
@@ -360,7 +367,8 @@ def schedule_notification(timezone, slug, tokens, context=None, provider=None):
 
     # We round because `total_seconds` returns a `float`
     delay = round((schedule - datetime.datetime.now()).total_seconds())
-    result = send_notification_task.apply_async((notification_instance.pk,), countdown=delay)
+    result = send_notification_task.apply_async((notification_instance.pk,),
+                                                countdown=delay)
     return result
 
 
