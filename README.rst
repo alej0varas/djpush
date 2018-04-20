@@ -11,6 +11,7 @@ Features
  - Categorize notifications
  - Schedule notifications by category
  - Choose your provider(APNS/apns2, GCM/gcm, OneSignal/yaosac). Actually you must install one.
+ - Same notification in time range are canceled
  - (optional) Multiple language support via django-modelstranslation
 
 Important Dependencies

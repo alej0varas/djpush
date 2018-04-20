@@ -321,7 +321,10 @@ class SchedulerMinutesLater(Scheduler):
 
 
 def schedule_notification(timezone, slug, tokens, context=None, provider=None):
-    tokens = json.dumps(tokens)
+    # We sort `tokens` to be sure they will be equal if the same
+    # notification is scheduled again. Required to cancel other
+    # notifications later.
+    tokens = json.dumps(sorted(tokens))
     provider = provider or DEFAULT_PROVIDER
     try:
         notification = Notification.objects.get(slug=slug, enabled=True)
@@ -340,19 +343,36 @@ def schedule_notification(timezone, slug, tokens, context=None, provider=None):
     TO_SECONDS = 6
     if schedule is not None:
         schedule = datetime.datetime(*schedule.utctimetuple()[:TO_SECONDS])
-
     # We discard the notification when `delay` equals to `None`
     if schedule is None:
         return None
-    # Cancel other notification instances with the same `notification`
-    # and `tokens` in the same period(between `now` and `schedule`).
+
+    # Check for instances with the same `notification` and `tokens` in
+    # the same period(between `now` and `schedule`). If none has been
+    # sent cancel all of them and schedule current. If any was sent
+    # cancel all others and don't schedule current.
     start_date = datetime.datetime.now()
-    NotificationInstance.objects.select_for_update().filter(
+    instances = NotificationInstance.objects.select_for_update(
+    ).filter(
         notification=notification,
         tokens=tokens,
         scheduled_at__range=(start_date, schedule)
-    ).update(canceled=True)
+    )
+    any_sent = instances.exclude(
+        sent_at__isnull=True
+    ).count()
+    if any_sent:
+        instances.filter(
+            sent_at__isnull=True
+        ).update(
+            canceled=True)
+        # Already sent, we don't schedule
+        return None
+    else:
+        # Cancel other not sent notifications
+        instances.update(canceled=True)
 
+    # Schedule new notification
     data = json.dumps(notification.as_dict(context))
     notification_instance = NotificationInstance.objects.create(
         notification=notification,
