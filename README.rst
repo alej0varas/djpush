@@ -30,6 +30,9 @@ DJPUSH_NOTIFICATIONS_CHOICES
   A list of `slugs <https://docs.djangoproject.com/en/1.11/glossary/#term-slug>`_ representing the notifications you want to send.
 DJPUSH_DEFAULT_PROVIDER
   The provider you want to use to send notifications(values can be found in `pypn <https://github.com/alej0varas/pypn>`_).
+optional settings
+DJPUSH_NOTIFICATION_EXPIRES
+  The number of seconds after task will be considered expired
 
 .. code-block:: python
 
@@ -64,6 +67,7 @@ Build/Publish
 
 ::
 
+   rm -rf dist
    python setup.py sdist bdist_wheel
    twine upload dist/*
 

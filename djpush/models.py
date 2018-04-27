@@ -22,11 +22,35 @@ PRIORITY_CHOICES = (
     (PRIORITY_NORMAL, "Normal"),
     (PRIORITY_HIGH, "High"),
 )
+SEND_NOTIFICATION_KWARGS = {}
 
 DEFAULT_PROVIDER = getattr(settings, 'DJPUSH_DEFAULT_PROVIDER')
 if DEFAULT_PROVIDER is None:
-    raise ImproperlyConfigured('A default notification provider is required. '
-                               'Check README for details.')
+    raise ImproperlyConfigured(
+        'A default notification provider is required. '
+        'Check README for details.')
+
+try:
+    _expires = int(getattr(settings, 'DJPUSH_NOTIFICATION_EXPIRES'))
+    SEND_NOTIFICATION_KWARGS.update({'expires': _expires})
+except (AttributeError, TypeError, ValueError):
+    pass
+
+
+try:
+    NOTIFICATION_CHOICES = getattr(settings, 'DJPUSH_NOTIFICATION_CHOISES')
+except AttributeError:
+    NOTIFICATION_CHOICES = []
+
+# Should always exist because it's a Django default
+try:
+    _languages = dict(getattr(settings, 'LANGUAGES'))
+    # This is the default an will be taken from the field without
+    # translation.
+    _languages.pop('en')
+    LANGUAGES = _languages.keys()
+except AttributeError:
+    LANGUAGES = []
 
 
 class NotificationCategory(models.Model):
@@ -39,7 +63,7 @@ class NotificationCategory(models.Model):
 
 
 def ValidNotificationSlug(value):
-    if value not in [i[0] for i in settings.DJPUSH_NOTIFICATION_CHOISES]:
+    if value not in [i[0] for i in NOTIFICATION_CHOICES]:
         raise ValidationError('%s not in "DJPUSH_NOTIFICATION_CHOISES"'
                               % value)
 
@@ -136,11 +160,6 @@ class Notification(models.Model):
         # Fields we want to render
         dynamic_keys = ['body', 'title']
         # To get translations
-        languages = dict(settings.LANGUAGES)
-        # This is the default an will be taken from the field without
-        # translation.
-        languages.pop('en')
-        languages = languages.keys()
         fields = [field for field in self._meta.get_fields()]
         # Exclude administrative fields
         excluded_keys = ['id', 'name', 'slug', 'description', 'enabled',
@@ -149,7 +168,7 @@ class Notification(models.Model):
         # Exclude translation fields
         excluded_keys.extend(
             [key.name for key in fields
-             if key.name.split('_')[-1] in languages])
+             if key.name.split('_')[-1] in LANGUAGES])
 
         # Data to pass to pypn
         result = {}
@@ -169,7 +188,7 @@ class Notification(models.Model):
             except AttributeError:
                 pass
             # If translation *is* enablen
-            for language in languages:
+            for language in LANGUAGES:
                 try:
                     template = Template(getattr(self, field + '_' + language))
                 except AttributeError:
@@ -248,7 +267,7 @@ class NotificationInstance(models.Model):
             self.result = result.json()
         else:
             self.result = result.content
-        self.save()
+        self.save(update_fields=('sent_at', 'result'))
 
         return result
 
@@ -387,8 +406,11 @@ def schedule_notification(timezone, slug, tokens, context=None, provider=None):
 
     # We round because `total_seconds` returns a `float`
     delay = round((schedule - datetime.datetime.now()).total_seconds())
-    result = send_notification_task.apply_async((notification_instance.pk,),
-                                                countdown=delay)
+    kwargs = SEND_NOTIFICATION_KWARGS.copy()
+    kwargs.update({'countdown': delay})
+    result = send_notification_task.apply_async(
+        (notification_instance.pk,),
+        **kwargs)
     return result
 
 
