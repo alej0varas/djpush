@@ -44,11 +44,7 @@ except AttributeError:
 
 # Should always exist because it's a Django default
 try:
-    _languages = dict(getattr(settings, 'LANGUAGES'))
-    # This is the default an will be taken from the field without
-    # translation.
-    _languages.pop('en')
-    LANGUAGES = _languages.keys()
+    LANGUAGES = dict(getattr(settings, 'LANGUAGES')).keys()
 except AttributeError:
     LANGUAGES = []
 
@@ -166,17 +162,15 @@ class Notification(models.Model):
                          'notificationscheduler', 'notificationinstance',
                          'category']
         # Exclude translation fields
-        excluded_keys.extend(
-            [key.name for key in fields
-             if key.name.split('_')[-1] in LANGUAGES])
-
+        for field in fields:
+            if field.name.split('_')[-1] in LANGUAGES:
+                excluded_keys.append(field.name)
         # Data to pass to pypn
         result = {}
         for field in fields:
             if field.name in excluded_keys:
                 continue
             result[field.name] = getattr(self, field.name)
-
         # Translate fields
         context = Context(context)
         dynamic_fields = defaultdict(dict)
@@ -187,7 +181,7 @@ class Notification(models.Model):
                 dynamic_fields[field]['en'] = template.render(context)
             except AttributeError:
                 pass
-            # If translation *is* enablen
+            # If translation *is* enabled
             for language in LANGUAGES:
                 try:
                     template = Template(getattr(self, field + '_' + language))
