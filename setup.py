@@ -36,7 +36,7 @@ setup(
     author_email='alej0varas@gmail.com',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['pypn', 'requests', 'celery', 'psycopg2', 'django-timezone-field'],
+    install_requires=['pypn', 'requests', 'django-timezone-field'],
     classifiers=[
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Intended Audience :: Developers',

@@ -102,7 +102,7 @@ class SchedulerTestCase(TestCase):
 
 
 class ScheduleNotificationTestCase(TestCase):
-    @mock.patch('djpush.models.send_notification_task')
+    @mock.patch('djpush.models.NotificationInstance.send')
     def test_success(self, mock_send):
         slug = 'a-slug'
         tokens = ['token', 'token1']
@@ -132,15 +132,3 @@ class ScheduleNotificationTestCase(TestCase):
             result = models.schedule_notification(timezone, slug, tokens)
 
         self.assertIsNone(result)
-
-
-class TasksTestCase(TestCase):
-    def test_send_notification_task(self):
-        tokens = '["token", "token1"]'
-        notification = models.Notification.objects.create()
-        notification_instance = models.NotificationInstance.objects.create(notification=notification, tokens=tokens, data='{}')
-        with mock.patch('djpush.models.NotificationInstance.send') as mock_send:
-
-            models.send_notification_task(notification_instance.pk)
-
-            mock_send.assert_called_once_with()

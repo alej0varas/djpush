@@ -4,7 +4,6 @@ import json
 
 import pypn
 import requests
-from celery import shared_task
 from django.conf import settings
 from django.core.exceptions import (ImproperlyConfigured,
                                     ObjectDoesNotExist, ValidationError)
@@ -245,9 +244,7 @@ class NotificationInstance(models.Model):
     def send(self):
         if self.canceled:
             return None
-        # Avoid sending the notification again if the worker runs the
-        # same task multiple times. It's happening with celery and AWS
-        # SQS.
+        # Avoid sending the notification again
         if self.sent_at is not None:
             return None
         notification = pypn.Notification(self.provider)
@@ -402,16 +399,5 @@ def schedule_notification(timezone, slug, tokens, context=None, provider=None):
     delay = round((schedule - datetime.datetime.now()).total_seconds())
     kwargs = SEND_NOTIFICATION_KWARGS.copy()
     kwargs.update({'countdown': delay})
-    result = send_notification_task.apply_async(
-        (notification_instance.pk,),
-        **kwargs)
+    result = notification_instance.send()
     return result
-
-
-@shared_task
-def send_notification_task(pk):
-    try:
-        notification_instance = NotificationInstance.objects.get(pk=pk)
-    except NotificationInstance.DoesNotExist:
-        return None
-    notification_instance.send()

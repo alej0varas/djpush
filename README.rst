@@ -17,7 +17,6 @@ Features
 Important Dependencies
 ======================
 
- - celery
  - django-timezone-field
  - pytz
 
